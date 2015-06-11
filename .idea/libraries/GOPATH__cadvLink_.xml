@@ -1,0 +1,29 @@
+<component name="libraryTable">
+  <library name="GOPATH &lt;cadvLink&gt;">
+    <CLASSES>
+      <root url="file://D:/gosrc/src/github.com" />
+      <root url="file://D:/gosrc/src/numina" />
+      <root url="file://D:/gosrc/src/golang.org" />
+      <root url="file://D:/gosrc/src/code.google.com" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+    <excluded>
+      <root url="file://D:/gosrc/src/github.com/haxpax/goserial/.git" />
+      <root url="file://D:/gosrc/src/github.com/vaughan0/go-ini/.git" />
+      <root url="file://D:/gosrc/src/golang.org/x/text/.git" />
+      <root url="file://D:/gosrc/src/github.com/satori/go.uuid/.git" />
+      <root url="file://D:/gosrc/src/github.com/mattn/go-sqlite3/.git" />
+      <root url="file://D:/gosrc/src/github.com/denisenkom/go-mssqldb/.git" />
+      <root url="file://D:/gosrc/src/github.com/go-sql-driver/mysql/.git" />
+      <root url="file://D:/gosrc/src/github.com/gorilla/mux/.git" />
+      <root url="file://D:/gosrc/src/numina/nscud/.idea" />
+      <root url="file://D:/gosrc/src/golang.org/x/text/encoding/testdata" />
+      <root url="file://D:/gosrc/src/code.google.com/p/go-charset/.hg" />
+      <root url="file://D:/gosrc/src/github.com/haxpax/gosms/.git" />
+      <root url="file://$PROJECT_DIR$" />
+      <root url="file://D:/gosrc/src/github.com/mattn/go-sqlite3/_example" />
+      <root url="file://D:/gosrc/src/github.com/gorilla/context/.git" />
+    </excluded>
+  </library>
+</component>
