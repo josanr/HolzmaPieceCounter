@@ -1,2 +1,2 @@
 # HolzmaPieceCounter
-Service to monitor piece execution by Holzma CPU and act on each type of action
+Service to monitor piece execution by Homag Holzma CutMatic v4.
