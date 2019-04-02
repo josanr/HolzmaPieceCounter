@@ -14,7 +14,7 @@ func main() {
 	if err != nil {
 		log.Fatal("Open connection failed:", err.Error())
 	}
-	err = conn.Ping();
+	err = conn.Ping()
 	if err != nil {
 		log.Fatal("Ping failed:", err.Error())
 	}
@@ -27,7 +27,7 @@ func main() {
 	var classname string
 	var plan string
 	var lauf string
-	for x := 0; x<10; x=x+1 {
+	for x := 0; x < 10; x = x + 1 {
 		err = conn.QueryRow(`select ID,
 						Lauf,
 						"Plan",
@@ -35,7 +35,7 @@ func main() {
 						Type,
 						IntID,
 						Val from Cadmatic4.dbo.PieceCounter  WHERE intID=?`, 119).
-		Scan(&id, &lauf, &plan, &classname, &types, &intID, &val)
+			Scan(&id, &lauf, &plan, &classname, &types, &intID, &val)
 
 		if err != nil {
 			log.Fatal("Query failed:", err.Error())
@@ -75,4 +75,3 @@ func main() {
 	//	fmt.Printf(string(id), lauf, plan, classname, types, string(intID), string(val))
 	//	fmt.Printf("somechars:%s\n", somechars)
 }
-
