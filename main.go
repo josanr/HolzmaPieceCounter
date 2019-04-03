@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	conn, err := sql.Open("mssql", "server=localhost\\HO2008;user id=sa;password=Homag;encrypt=disable")
+	conn, err := sql.Open("mssql", "server=192.168.221.254\\HO2008;user id=sa;password=Homag;encrypt=disable")
 	if err != nil {
 		log.Fatal("Open connection failed:", err.Error())
 	}
@@ -32,15 +32,15 @@ func main() {
 						ClassName,
 						Type,
 						IntID,
-						Val from Cadmatic4.dbo.PieceCounter  WHERE intID=?`)
+						Val from Cadmatic4.dbo.PieceCounter  WHERE Lauf=?`)
 	if err != nil {
 		log.Fatal("Prepare failed:", err.Error())
 	}
 	defer stmt.Close()
 
-	row := stmt.QueryRow(473)
+	row := stmt.QueryRow("176862-10")
 
-	err = row.Scan(&id, &lauf, &plan, &classname, &types, &intID, &val)
+	err = row.Scan(&id, &run, &plan, &classname, &types, &intID, &val)
 	if err != nil {
 		log.Fatal("Scan failed:", err.Error())
 	}
