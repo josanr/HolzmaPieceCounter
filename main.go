@@ -342,7 +342,7 @@ func queryBoards(conn *sql.DB, runId string) {
 			})
 			fmt.Println(string(message))
 		}
-		defer rows.Close()
+		rows.Close()
 		time.Sleep(time.Second * 1)
 	}
 
