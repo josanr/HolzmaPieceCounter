@@ -211,7 +211,6 @@ func queryParts(conn *sql.DB, runId string) {
 			fmt.Println(string(message))
 			os.Exit(251)
 		}
-		defer rows.Close()
 
 		for rows.Next() {
 
@@ -261,7 +260,7 @@ func queryParts(conn *sql.DB, runId string) {
 			})
 			fmt.Println(string(message))
 		}
-
+		rows.Close()
 		time.Sleep(time.Second * 1)
 	}
 
@@ -275,7 +274,7 @@ func queryBoards(conn *sql.DB, runId string) {
 		from 
 			Cadmatic4.dbo.PieceCounter  
 		WHERE 
-			Lauf = '176862-10'
+			Lauf = ` + runId + `
 			AND ClassName NOT IN ('Rest', 'Teil');
 			`)
 	err := lastIdArr.Scan(&lastID)
@@ -318,7 +317,6 @@ func queryBoards(conn *sql.DB, runId string) {
 			})
 			fmt.Println(string(message))
 		}
-		defer rows.Close()
 
 		for rows.Next() {
 
@@ -344,7 +342,7 @@ func queryBoards(conn *sql.DB, runId string) {
 			})
 			fmt.Println(string(message))
 		}
-
+		defer rows.Close()
 		time.Sleep(time.Second * 1)
 	}
 
