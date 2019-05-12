@@ -4,18 +4,12 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"os"
-	"strconv"
-	"strings"
-	"time"
-
 	_ "github.com/denisenkom/go-mssqldb"
-	"github.com/namsral/flag"
+	"github.com/gorilla/websocket"
+	"github.com/josanr/HolzmaPieceCounter/counter"
+	"log"
+	"net/http"
 )
-
-var connectionStrings = map[string]string{
-	"Homag": "server=localhost\\Holzma;user id=sa;password=holzma;encrypt=disable",
-	"H2008": "server=192.168.221.254\\HO2008;user id=sa;password=Homag;encrypt=disable"}
 
 /*
 	types:
@@ -29,321 +23,101 @@ var connectionStrings = map[string]string{
 		)
 
 */
-type Response struct {
-	OrderId      int    `json:"orderId"`
-	ToolId       int    `json:"toolId"`
-	IsOffcut     bool   `json:"isOffcut"`
-	PartId       int64  `json:"partId"`
-	PartAmount   int64  `json:"partAmount"`
-	Error        bool   `json:"isError"`
-	ErrorMessage string `json:"message"`
-}
 
-func (r *Response) setId(runName string) {
-	ids := strings.Split(runName, "-")
-	var err error
+var connectionStrings = map[string]string{
+	"Homag": "server=localhost\\Holzma;user id=sa;password=holzma;encrypt=disable",
+	"H2008": "server=192.168.221.254\\HO2008;user id=sa;password=Homag;encrypt=disable"}
 
-	r.OrderId, err = strconv.Atoi(ids[0])
+var db *sql.DB
+var err error
+
+func connectHomag() (*sql.DB, error) {
+	db, err := sql.Open("mssql", connectionStrings["Homag"])
 	if err != nil {
-		r.Error = true
-		r.ErrorMessage = err.Error()
+		return nil, err
 	}
-	r.ToolId, err = strconv.Atoi(ids[1])
+	err = db.Ping()
 	if err != nil {
-		r.Error = true
-		r.ErrorMessage = err.Error()
+		return nil, err
 	}
-}
-func (r *Response) setPartType(actionResult string) {
-	switch actionResult {
-	case "Rest":
-		r.IsOffcut = true
-	case "Teil":
-		r.IsOffcut = false
-	default:
-		r.Error = true
-		r.ErrorMessage = "action result is not tail or rest"
-	}
+
+	return db, nil
 }
 
-type BoardResponse struct {
-	OrderId      int    `json:"orderId"`
-	ToolId       int    `json:"toolId"`
-	BoardId      int    `json:"boardId"`
-	ActionType   string `json:"actionType"`
-	Error        bool   `json:"isError"`
-	ErrorMessage string `json:"message"`
-}
-
-func (r *BoardResponse) setId(runName string) {
-	ids := strings.Split(runName, "-")
-	var err error
-
-	r.OrderId, err = strconv.Atoi(ids[0])
+func connectHo2008() (*sql.DB, error) {
+	db, err := sql.Open("mssql", connectionStrings["H2008"])
 	if err != nil {
-		r.Error = true
-		r.ErrorMessage = err.Error()
+		return nil, err
 	}
-	r.ToolId, err = strconv.Atoi(ids[1])
+	err = db.Ping()
 	if err != nil {
-		r.Error = true
-		r.ErrorMessage = err.Error()
+		return nil, err
+	}
+
+	return db, nil
+}
+
+func init() {
+	db, err = connectHomag()
+	if err != nil {
+		db, err = connectHo2008()
+		if err != nil {
+			log.Fatal("Could not connect to Database")
+		}
 	}
 }
-func (r *BoardResponse) setActionType(actionResult string) {
-	switch actionResult {
-	case "Eingestapelt":
-		r.ActionType = "start"
-	case "Produziert":
-		r.ActionType = "end"
-	default:
-		r.Error = true
-		r.ErrorMessage = "action type is not palete or produced"
-	}
+
+var upgrader = websocket.Upgrader{
+	ReadBufferSize:  1024,
+	WriteBufferSize: 1024,
 }
-
-type FatalResponse struct {
-	OrderId      int    `json:"orderId"`
-	ToolId       int    `json:"toolId"`
-	Error        bool   `json:"isError"`
-	ErrorMessage string `json:"message"`
-}
-
-type result struct {
-	id           int64  //ID
-	partid       int64  //IntID
-	amount       int64  //Val
-	actionType   string //Type
-	actionResult string //ClassName
-	mapId        string //Plan
-	runName      string //Lauf
-}
-
-func (r result) getIndex() string {
-
-	return strconv.FormatInt(r.id, 10) + ":" + r.runName + ":" + r.actionResult + ":" + strconv.FormatInt(r.partid, 10)
-}
-
-// var mapId, _ = strconv.Atoi(plan)
-
-// fmt.Println("Serial: " + strconv.FormatInt(id, 10))
-// fmt.Println(" RunName(usedAsId): " + run)
-// fmt.Println(" MapNum in run: " + strconv.Itoa(mapId))
-// fmt.Println(" ProdType: " + classname)
-// fmt.Println(" ActType " + types)
-// fmt.Println(" PartId: " + strconv.FormatInt(intID, 10))
-// fmt.Println(" PartAmount: " + strconv.FormatInt(val, 10))
-type runerList map[string]result
 
 func main() {
-	connSelect := "H2008"
-	runId := "176862-10"
+	defer db.Close()
 
-	flag.StringVar(&connSelect, "connection", connSelect, "Connection Selector")
-	flag.StringVar(&runId, "runId", runId, "run file name not set")
-	flag.Parse()
+	http.HandleFunc("/counter", func(w http.ResponseWriter, r *http.Request) {
 
-	if runId == "" {
-		message, _ := json.Marshal(FatalResponse{
-			Error:        true,
-			ErrorMessage: "No run id selected",
-		})
-		fmt.Println(string(message))
-		os.Exit(251)
-	}
-
-	conn, err := sql.Open("mssql", connectionStrings["H2008"])
-	if err != nil {
-		message, _ := json.Marshal(FatalResponse{
-			Error:        true,
-			ErrorMessage: "Open connection failed:" + err.Error(),
-		})
-		fmt.Println(string(message))
-		os.Exit(251)
-	}
-	err = conn.Ping()
-	if err != nil {
-		message, _ := json.Marshal(FatalResponse{
-			Error:        true,
-			ErrorMessage: "Ping failed:" + err.Error(),
-		})
-		fmt.Println(string(message))
-		os.Exit(251)
-	}
-	defer conn.Close()
-
-	go queryBoards(conn, runId)
-	queryParts(conn, runId)
-}
-
-func queryParts(conn *sql.DB, runId string) {
-	var runList = runerList{}
-	stmt, err := conn.Prepare(`select 
-							ID,
-							"Lauf",
-							"Plan",
-							"ClassName",
-							"Type",
-							"IntID",
-							Val 
-						from 
-							Cadmatic4.dbo.PieceCounter 
-						WHERE 
-							Lauf=?
-							AND ClassName IN ('Rest', 'Teil')`)
-	if err != nil {
-		message, _ := json.Marshal(FatalResponse{
-			Error:        true,
-			ErrorMessage: "Prepare parts query failed:" + err.Error(),
-		})
-		fmt.Println(string(message))
-		os.Exit(251)
-	}
-	defer stmt.Close()
-	var isInitialRun = true
-	for {
-		rows, err := stmt.Query(runId)
+		var runId = r.FormValue("runId")
+		if runId == "" {
+			log.Println("no run id requested")
+			http.Error(w, "no run id requested", http.StatusBadRequest)
+			return
+		}
+		upgrader.CheckOrigin = func(r *http.Request) bool { return true }
+		ws, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
-			message, _ := json.Marshal(FatalResponse{
-				Error:        true,
-				ErrorMessage: "Query parts failed:" + err.Error(),
-			})
-			fmt.Println(string(message))
-			os.Exit(251)
+			log.Println(err)
+			return
+		}
+		var connActive = make(chan bool)
+		var query = counter.New(db, runId, connActive)
+
+		var message []byte
+		for {
+
+			select {
+			case board := <-query.Boards:
+				fmt.Println(board.BoardId)
+				message, _ = json.Marshal(board)
+			case part := <-query.Parts:
+				fmt.Println(part.PartId)
+				message, _ = json.Marshal(part)
+			case ex := <-query.Errors:
+				fmt.Println(ex.ErrorMessage)
+				message, _ = json.Marshal(ex)
+			}
+			//log.Println(string(message))
+			if err = ws.WriteMessage(websocket.TextMessage, message); err != nil {
+				log.Println(err)
+				close(connActive)
+				return
+			}
 		}
 
-		for rows.Next() {
+	})
 
-			res := result{}
-			response := Response{}
-			err = rows.Scan(&res.id, &res.runName, &res.mapId, &res.actionResult, &res.actionType, &res.partid, &res.amount)
-			if err != nil {
-				message, _ := json.Marshal(FatalResponse{
-					Error:        true,
-					ErrorMessage: "Part Scan failed:" + err.Error(),
-				})
-				fmt.Println(string(message))
-				continue
-			}
-			if isInitialRun {
-				runList[res.getIndex()] = res
-				continue
-			}
-			runItem, ok := runList[res.getIndex()]
-			if ok == false {
-				runList[res.getIndex()] = res
-				response.setId(res.runName)
-				response.setPartType(res.actionResult)
-				response.PartId = res.partid
-				response.PartAmount = res.amount
-				message, _ := json.Marshal(response)
-				fmt.Println(string(message))
-				continue
-			}
-
-			if runItem.amount != res.amount {
-				response.setId(res.runName)
-				response.setPartType(res.actionResult)
-				response.PartId = res.partid
-				response.PartAmount = res.amount - runItem.amount
-				message, _ := json.Marshal(response)
-				runList[res.getIndex()] = res
-				fmt.Println(string(message))
-			}
-
-		}
-		isInitialRun = false
-		if err = rows.Err(); err != nil {
-			message, _ := json.Marshal(FatalResponse{
-				Error:        true,
-				ErrorMessage: "Error on rows:" + err.Error(),
-			})
-			fmt.Println(string(message))
-		}
-		rows.Close()
-		time.Sleep(time.Second * 1)
-	}
-
-}
-
-func queryBoards(conn *sql.DB, runId string) {
-	var lastID int64 = 0
-	lastIdArr := conn.QueryRow(`
-		SELECT 
-			max(id) 
-		from 
-			Cadmatic4.dbo.PieceCounter  
-		WHERE 
-			Lauf = ` + runId + `
-			AND ClassName NOT IN ('Rest', 'Teil');
-			`)
-	err := lastIdArr.Scan(&lastID)
+	err = http.ListenAndServe(":8080", nil)
 	if err != nil {
-		lastID = 0
+		log.Fatal("Could not start server")
 	}
-	stmt, err := conn.Prepare(`select
-							ID,
-							"Lauf",
-							"Plan",
-							"ClassName",
-							"Type",
-							"IntID",
-							Val
-						from
-							Cadmatic4.dbo.PieceCounter
-						WHERE
-							Lauf = ?
-							AND id > ?
-							AND ClassName NOT IN ('Rest', 'Teil')`)
-	if err != nil {
-		message, _ := json.Marshal(FatalResponse{
-			Error:        true,
-			ErrorMessage: "Prepare boards query failed:" + err.Error(),
-		})
-		fmt.Println(string(message))
-	}
-	defer stmt.Close()
-
-	for {
-		rows, err := stmt.Query(runId, lastID)
-		switch {
-		case err == sql.ErrNoRows:
-			time.Sleep(time.Second * 1)
-			continue
-		case err != nil:
-			message, _ := json.Marshal(FatalResponse{
-				Error:        true,
-				ErrorMessage: "Query boards failed:" + err.Error(),
-			})
-			fmt.Println(string(message))
-		}
-
-		for rows.Next() {
-
-			res := result{}
-			response := BoardResponse{}
-			err = rows.Scan(&res.id, &res.runName, &res.mapId, &res.actionResult, &res.actionType, &res.partid, &res.amount)
-			if err != nil {
-				continue
-			}
-
-			boardId, _ := strconv.Atoi(res.mapId)
-			response.setId(res.runName)
-			response.setActionType(res.actionType)
-			response.BoardId = boardId
-			lastID = res.id
-			message, _ := json.Marshal(response)
-			fmt.Println(string(message))
-		}
-		if err = rows.Err(); err != nil {
-			message, _ := json.Marshal(FatalResponse{
-				Error:        true,
-				ErrorMessage: "Error on board rows:" + err.Error(),
-			})
-			fmt.Println(string(message))
-		}
-		rows.Close()
-		time.Sleep(time.Second * 1)
-	}
-
 }
