@@ -9,6 +9,7 @@ import (
 	"github.com/josanr/HolzmaPieceCounter/counter"
 	"log"
 	"net/http"
+	"time"
 )
 
 /*
@@ -26,7 +27,7 @@ import (
 
 var connectionStrings = map[string]string{
 	"Homag": "server=localhost\\Holzma;user id=sa;password=holzma;encrypt=disable",
-	"H2008": "server=192.168.221.254\\HO2008;user id=sa;password=Homag;encrypt=disable"}
+	"H2008": "server=localhost\\HO2008;user id=sa;password=Homag;encrypt=disable"}
 
 var db *sql.DB
 var err error
@@ -67,6 +68,10 @@ func init() {
 	}
 }
 
+const (
+	pongWait = 60 * time.Second
+)
+
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
@@ -89,6 +94,10 @@ func main() {
 			log.Println(err)
 			return
 		}
+
+		_ = ws.SetReadDeadline(time.Now().Add(pongWait))
+		ws.SetPongHandler(func(string) error { _ = ws.SetReadDeadline(time.Now().Add(pongWait)); return nil })
+
 		var connActive = make(chan bool)
 		var query = counter.New(db, runId, connActive)
 
@@ -116,7 +125,7 @@ func main() {
 
 	})
 
-	err = http.ListenAndServe(":8080", nil)
+	err = http.ListenAndServe(":1603", nil)
 	if err != nil {
 		log.Fatal("Could not start server")
 	}
