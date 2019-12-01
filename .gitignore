@@ -54,3 +54,4 @@ fabric.properties
 
 /go.sum
 /vendor/
+/out/
